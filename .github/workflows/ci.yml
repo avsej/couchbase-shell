@@ -26,10 +26,16 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        build: [linux, macos, windows]
+        build: [linux, aarch64-linux-gnu, macos, aarch64-macos, windows]
         include:
           - build: linux
             os: ubuntu-22.04
+            rust: stable
+          - build: aarch64-linux-gnu
+            os: ubuntu-22.04
+            rust: stable
+          - build: aarch64-macos
+            os: macos-latest
             rust: stable
           - build: macos
             os: macos-latest
@@ -40,7 +46,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - uses: actions-rs/toolchain@v1
+    - uses: actions-rs/toolchain@v2
       with:
         profile: minimal
         toolchain: stable
@@ -79,10 +85,12 @@ jobs:
         args: --verbose
 
     - name: Create artifact directory
-      run: mkdir artifacts
+      run: |
+        mkdir artifacts
+        mkdir ${{ env.ARTIFACT_BIN }}-${{ env.SHA8 }}-${{ matrix.build }}
 
     - name: Create archive for Linux
-      run: 7z a -ttar -so -an ./target/debug/${{ env.ARTIFACT_BIN }} ${{ env.ARTIFACT_ADDS }} | 7z a -si ./artifacts/${{ env.ARTIFACT_BIN }}-${{ env.SHA8 }}-linux-x86_64.tar.gz
+      run: 7z a -ttar -so -an ./target/debug/${{ env.ARTIFACT_BIN }} ${{ env.ARTIFACT_ADDS }} | 7z a -si ./artifacts/${{ env.ARTIFACT_BIN }}-${{ env.SHA8 }}-linux-${{ matrix.build }}.tar.gz
       if: matrix.os == 'ubuntu-22.04'
 
     - name: Install p7zip
@@ -91,7 +99,7 @@ jobs:
       if: matrix.os == 'macos-latest'
 
     - name: Create archive for MacOS
-      run: 7z a -tzip ./artifacts/${{ env.ARTIFACT_BIN }}-${{ env.SHA8 }}-mac-x86_64.zip ./target/debug/${{ env.ARTIFACT_BIN }} ${{ env.ARTIFACT_ADDS }}
+      run: 7z a -tzip ./artifacts/${{ env.ARTIFACT_BIN }}-${{ env.SHA8 }}-mac-${{ matrix.build }}.zip ./target/debug/${{ env.ARTIFACT_BIN }} ${{ env.ARTIFACT_ADDS }}
       if: matrix.os == 'macos-latest'
 
     - name: Create archive for Windows
@@ -102,10 +110,10 @@ jobs:
 
     # This will double-zip
     # See - https://github.com/actions/upload-artifact/issues/39
-    - uses: actions/upload-artifact@v1
+    - uses: actions/upload-artifact@v3
       name: Upload archive
       with:
-        name: ${{ runner.os }}
+        name: ${{ matrix.build }}-${{ env.SHA8 }}
         path: artifacts/
 
   rustfmt:
